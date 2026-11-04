@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Tự Động Xếp Phòng & Quản Lý Thời Khóa Biểu</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo & System Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                        <i data-lucide="calendar"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">SmartRoom System</h1>
+                        <p class="text-xs text-indigo-200">Quản Lý & Xếp Phòng Học Tự Động</p>
+                    </div>
+                </div>
+
+                <!-- Role Switcher Tabs -->
+                <nav class="flex space-x-1 sm:space-x-2 bg-indigo-950 p-1.5 rounded-xl border border-indigo-800/50">
+                    <button onclick="switchRole('admin')" id="nav-admin" 
+                            class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
+                        <i data-lucide="sliders" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Cán bộ</span> Đào Tạo
+                    </button>
+                    <button onclick="switchRole('student')" id="nav-student" 
+                            class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center space-x-1.5 text-indigo-200 hover:text-white hover:bg-indigo-800/50">
+                        <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                        <span>Sinh Viên</span>
+                    </button>
+                    <button onclick="switchRole('lecturer')" id="nav-lecturer" 
+                            class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex items-center space-x-1.5 text-indigo-200 hover:text-white hover:bg-indigo-800/50">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        <span>Giảng Viên</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: CÁN BỘ ĐÀO TẠO (ADMIN DASHBOARD)   -->
+        <!-- ========================================== -->
+        <section id="view-admin" class="space-y-6">
+            <!-- Control Panel & Status -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 transition">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    
+                    <!-- File Excel Upload Area -->
+                    <div class="flex-1">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Tải lên Thời khóa biểu (Excel/CSV):</label>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="flex items-center space-x-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl cursor-pointer transition text-sm font-medium border border-slate-300">
+                                <i data-lucide="file-up" class="w-4 h-4 text-indigo-600"></i>
+                                <span id="file-name-display">Chọn file Excel khóa học...</span>
+                                <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileSelect(event)">
+                            </label>
+                            <button onclick="loadSampleData()" class="px-3 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg transition border border-indigo-200">
+                                Nạp dữ liệu mẫu
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Auto Allocation Button -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <button id="btn-auto-assign" onclick="runAutoAllocation()" 
+                                class="flex items-center justify-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5">
+                            <i data-lucide="wand2" class="w-5 h-5"></i>
+                            <span>TỰ ĐỘNG XẾP PHÒNG</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar & Status (Hidden by default) -->
+                <div id="progress-container" class="mt-5 hidden border-t border-slate-100 pt-4">
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
+                        <span id="progress-status-text" class="flex items-center space-x-2">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-indigo-600"></i>
+                            <span>Đang phân tích sức chứa và tối ưu sơ đồ phòng học...</span>
+                        </span>
+                        <span id="progress-percent" class="text-indigo-600 font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timetable Matrix Grid -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+                    <div>
+                        <h2 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                            <i data-lucide="grid" class="w-5 h-5 text-indigo-600"></i>
+                            <span>Bảng Lưới Thời Khóa Biểu & Phòng Học</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Bấm vào lớp học để điều chỉnh phòng thủ công nếu muốn.</p>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="flex items-center space-x-4 text-xs font-medium">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 border border-emerald-600"></span>
+                            <span class="text-slate-600">Phòng hợp lệ</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-full bg-amber-500 border border-amber-600"></span>
+                            <span class="text-slate-600">Quá tải sức chứa</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-full bg-slate-200 border border-slate-300"></span>
+                            <span class="text-slate-600">Chưa xếp</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matrix Table -->
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full border-collapse text-left min-w-[800px]">
+                        <thead>
+                            <tr class="bg-slate-100/80 text-slate-700 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                                <th class="py-3 px-4 w-28 text-center border-r border-slate-200">Ca Học</th>
+                                <th class="py-3 px-4 border-r border-slate-200">Thứ 2</th>
+                                <th class="py-3 px-4 border-r border-slate-200">Thứ 3</th>
+                                <th class="py-3 px-4 border-r border-slate-200">Thứ 4</th>
+                                <th class="py-3 px-4 border-r border-slate-200">Thứ 5</th>
+                                <th class="py-3 px-4 border-r border-slate-200">Thứ 6</th>
+                                <th class="py-3 px-4">Thứ 7</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timetable-grid-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- JS Will Render Grid Rows (Ca 1 to Ca 6) dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: TRA CỨU SINH VIÊN (STUDENT LOOKUP) -->
+        <!-- ========================================== -->
+        <section id="view-student" class="space-y-6 hidden">
+            <!-- Student Header & Search -->
+            <div class="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-2xl shadow-md p-6 text-white">
+                <div class="max-w-xl">
+                    <h2 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
+                        <i data-lucide="search" class="w-6 h-6"></i>
+                        <span>Tra Cứu Lịch Học Cá Nhân</span>
+                    </h2>
+                    <p class="text-xs sm:text-sm text-indigo-100 mb-4">Nhập mã số sinh viên để xem chi tiết thời khóa biểu, phòng học và tòa nhà chuẩn xác.</p>
+
+                    <!-- Search Input -->
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <div class="relative flex-grow">
+                            <input type="text" id="student-id-input" placeholder="Nhập MSSV (Ví dụ: SV001, SV002...)" 
+                                   class="w-full pl-10 pr-4 py-3 rounded-xl text-slate-800 placeholder-slate-400 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-inner">
+                            <i data-lucide="user" class="w-5 h-5 text-slate-400 absolute left-3 top-3.5"></i>
+                        </div>
+                        <button onclick="lookupStudentSchedule()" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 font-bold text-white rounded-xl transition shadow-md flex items-center justify-center space-x-2">
+                            <span>Tra cứu</span>
+                        </button>
+                    </div>
+
+                    <!-- Quick suggestions -->
+                    <div class="mt-3 flex items-center space-x-2 text-xs text-indigo-200">
+                        <span>Gợi ý MSSV mẫu:</span>
+                        <button onclick="quickFillStudent('SV001')" class="underline hover:text-white">SV001</button>,
+                        <button onclick="quickFillStudent('SV002')" class="underline hover:text-white">SV002</button>,
+                        <button onclick="quickFillStudent('SV003')" class="underline hover:text-white">SV003</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student View Tabs: Lịch học / Phòng trống -->
+            <div class="flex border-b border-slate-200 space-x-4">
+                <button id="tab-btn-schedule" onclick="switchStudentTab('schedule')" class="py-2.5 px-4 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center space-x-2">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span>Thời Khóa Biểu Tuần</span>
+                </button>
+                <button id="tab-btn-empty-rooms" onclick="switchStudentTab('empty-rooms')" class="py-2.5 px-4 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center space-x-2">
+                    <i data-lucide="door-open" class="w-4 h-4"></i>
+                    <span>Phòng Học Trống Tự Học</span>
+                </button>
+            </div>
+
+            <!-- Tab Content 1: Personal Schedule (Mobile responsive Cards & Table) -->
+            <div id="student-tab-schedule" class="space-y-4">
+                <div id="student-info-card" class="hidden bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                        <h3 id="student-name-display" class="font-bold text-indigo-950 text-base">Họ tên sinh viên</h3>
+                        <p id="student-code-display" class="text-xs text-indigo-700 font-medium">MSSV: --</p>
+                    </div>
+                    <span class="px-3 py-1 bg-indigo-600 text-white rounded-full text-xs font-semibold">Đã cập nhật TKB</span>
+                </div>
+
+                <div id="student-schedule-container" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 text-center text-slate-500">
+                    <i data-lucide="calendar-search" class="w-12 h-12 text-slate-300 mx-auto mb-2"></i>
+                    <p class="text-sm">Vui lòng nhập MSSV để tra cứu thời khóa biểu cá nhân.</p>
+                </div>
+            </div>
+
+            <!-- Tab Content 2: Empty Rooms for Self-study -->
+            <div id="student-tab-empty-rooms" class="hidden space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base">Danh Sách Phòng Học Đang Trống</h3>
+                            <p class="text-xs text-slate-500">Tra cứu nhanh phòng trống trong ngày để tự học hoặc họp nhóm.</p>
+                        </div>
+                        <div class="flex items-center space-x-2 w-full sm:w-auto">
+                            <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Lọc Ca:</label>
+                            <select id="filter-ca-select" onchange="renderEmptyRooms()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-auto">
+                                <option value="all">Tất cả các Ca</option>
+                                <option value="Ca 1">Ca 1 (07:00 - 09:15)</option>
+                                <option value="Ca 2">Ca 2 (09:30 - 11:45)</option>
+                                <option value="Ca 3">Ca 3 (13:00 - 15:15)</option>
+                                <option value="Ca 4">Ca 4 (15:30 - 17:45)</option>
+                                <option value="Ca 5">Ca 5 (18:00 - 20:15)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="empty-rooms-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <!-- JS Will Populate Empty Rooms -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW 3: GIẢNG VIÊN (LECTURER SCHEDULE)     -->
+        <!-- ========================================== -->
+        <section id="view-lecturer" class="space-y-6 hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center space-x-2">
+                            <i data-lucide="user-check" class="w-6 h-6 text-indigo-600"></i>
+                            <span>Thời Khóa Biểu Giảng Dạy</span>
+                        </h2>
+                        <p class="text-xs text-slate-500">Xem danh sách các ca dạy trong tuần và vị trí phòng học.</p>
+                    </div>
+
+                    <!-- Lecturer Selector -->
+                    <div class="w-full sm:w-72">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Chọn Giảng Viên:</label>
+                        <select id="lecturer-select" onchange="renderLecturerSchedule()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-indigo-500">
+                            <!-- JS Will Render Lecturer Options -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Schedule Table/Grid for Lecturer -->
+                <div id="lecturer-schedule-container" class="overflow-x-auto custom-scrollbar">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MANUAL OVERRIDE MODAL -->
+    <div id="room-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200 animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Điều Chỉnh Phòng Thủ Công</span>
+                </h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="modal-class-details" class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                <!-- Class Info Inserted dynamically -->
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-2">Chọn phòng trống khả dụng trong ca này:</label>
+                <select id="modal-available-rooms-select" class="w-full bg-white border border-slate-300 text-slate-800 text-sm rounded-xl p-3 font-medium focus:ring-2 focus:ring-indigo-500">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">Hủy</button>
+                <button onclick="confirmManualReassignment()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs transition shadow-md">Lưu điều chỉnh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION POPUP -->
+    <div id="toast-notification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700">
+            <div id="toast-icon-bg" class="p-1 bg-emerald-500 text-white rounded-lg">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h4 id="toast-title" class="font-bold text-sm">Thông báo</h4>
+                <p id="toast-message" class="text-xs text-slate-300">Đã tự động gán phòng thành công!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // DATA STRUCTURES & MOCK DATA
+        const DAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+        const SHIFTS = ['Ca 1', 'Ca 2', 'Ca 3', 'Ca 4', 'Ca 5', 'Ca 6'];
+
+        // System Rooms Database
+        let rooms = [
+            { id: 'A1-101', building: 'Tòa A1', capacity: 40 },
+            { id: 'A1-102', building: 'Tòa A1', capacity: 50 },
+            { id: 'A1-201', building: 'Tòa A1', capacity: 80 },
+            { id: 'B2-301', building: 'Tòa B2', capacity: 45 },
+            { id: 'B2-302', building: 'Tòa B2', capacity: 60 },
+            { id: 'C3-104', building: 'Tòa C3', capacity: 100 },
+            { id: 'C3-105', building: 'Tòa C3', capacity: 35 },
+            { id: 'D1-202', building: 'Tòa D1', capacity: 50 }
+        ];
+
+        // System Classes / Course Schedule
+        let classesData = [
+            { id: 'L01', subject: 'Lập Trình Web Advanced', count: 48, lecturer: 'TS. Nguyễn Văn A', day: 'Thứ 2', shift: 'Ca 1', assignedRoom: null, students: ['SV001', 'SV002', 'SV005'] },
+            { id: 'L02', subject: 'Cơ Sở Dữ Liệu SQL', count: 75, lecturer: 'ThS. Trần Thị B', day: 'Thứ 2', shift: 'Ca 2', assignedRoom: null, students: ['SV001', 'SV003'] },
+            { id: 'L03', subject: 'Trí Tuệ Nhân Tạo AI', count: 95, lecturer: 'PGS.TS. Lê Hoàng C', day: 'Thứ 3', shift: 'Ca 3', assignedRoom: null, students: ['SV002', 'SV004'] },
+            { id: 'L04', subject: 'Mạng Máy Tính', count: 42, lecturer: 'ThS. Phạm Văn D', day: 'Thứ 3', shift: 'Ca 1', assignedRoom: null, students: ['SV003', 'SV005'] },
+            { id: 'L05', subject: 'Kỹ Thuật Phần Mềm', count: 58, lecturer: 'TS. Nguyễn Văn A', day: 'Thứ 4', shift: 'Ca 4', assignedRoom: null, students: ['SV001', 'SV004'] },
+            { id: 'L06', subject: 'Phân Tích Thiết Kế Hệ Thống', count: 38, lecturer: 'ThS. Trần Thị B', day: 'Thứ 5', shift: 'Ca 2', assignedRoom: null, students: ['SV002', 'SV003'] },
+            { id: 'L07', subject: 'An Toàn Thông Tin', count: 62, lecturer: 'TS. Vũ Minh E', day: 'Thứ 6', shift: 'Ca 5', assignedRoom: null, students: ['SV001', 'SV005'] },
+            { id: 'L08', subject: 'Đồ Họa Máy Tính', count: 30, lecturer: 'ThS. Phạm Văn D', day: 'Thứ 7', shift: 'Ca 1', assignedRoom: null, students: ['SV004'] }
+        ];
+
+        // Students Database Mocks
+        const studentsDatabase = {
+            'SV001': { name: 'Nguyễn Văn Nam', code: 'SV001', class: 'CNTT-K65' },
+            'SV002': { name: 'Trần Thị Thu Hà', code: 'SV002', class: 'KHMT-K66' },
+            'SV003': { name: 'Lê Hoàng Long', code: 'SV003', class: 'HTTT-K65' },
+            'SV004': { name: 'Phạm Phương Thảo', code: 'SV004', class: 'CNTT-K66' },
+            'SV005': { name: 'Vũ Quốc Anh', code: 'SV005', class: 'KHMT-K65' }
+        };
+
+        // State for selected class for manual reassignment
+        let selectedClassIdForOverride = null;
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderTimetableGrid();
+            populateLecturerSelect();
+        });
+
+        // ROLE SWITCHING FUNCTIONALITY
+        function switchRole(role) {
+            document.querySelectorAll('#view-admin, #view-student, #view-lecturer').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                btn.classList.add('text-indigo-200');
+            });
+
+            const activeBtn = document.getElementById(`nav-${role}`);
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+            activeBtn.classList.remove('text-indigo-200');
+
+            if (role === 'admin') {
+                document.getElementById('view-admin').classList.remove('hidden');
+                renderTimetableGrid();
+            } else if (role === 'student') {
+                document.getElementById('view-student').classList.remove('hidden');
+            } else if (role === 'lecturer') {
+                document.getElementById('view-lecturer').classList.remove('hidden');
+                renderLecturerSchedule();
+            }
+        }
+
+        // ==========================================
+        // 1. ADMIN DASHBOARD: AUTOMATED ROOM ASSIGNMENT
+        // ==========================================
+        function renderTimetableGrid() {
+            const tbody = document.getElementById('timetable-grid-body');
+            tbody.innerHTML = '';
+
+            SHIFTS.forEach(shift => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition';
+                
+                // Shift Label Column
+                let shiftHtml = `<td class="py-3 px-3 font-semibold text-xs text-slate-600 bg-slate-50 border-r border-b border-slate-200 text-center">
+                    <div class="font-bold text-slate-800">${shift}</div>
+                </td>`;
+
+                DAYS.forEach(day => {
+                    const matchingClass = classesData.find(c => c.day === day && c.shift === shift);
+                    
+                    if (matchingClass) {
+                        let roomCardHtml = '';
+                        if (!matchingClass.assignedRoom) {
+                            // Unassigned State
+                            roomCardHtml = `
+                                <div onclick="openManualOverrideModal('${matchingClass.id}')" class="p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer transition">
+                                    <div class="font-bold text-xs text-slate-800">${matchingClass.subject}</div>
+                                    <div class="text-[11px] text-slate-500 mt-1">Sĩ số: ${matchingClass.count} SV</div>
+                                    <span class="inline-block mt-1.5 px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-semibold rounded-md">Chưa xếp phòng</span>
+                                </div>`;
+                        } else {
+                            const roomObj = rooms.find(r => r.id === matchingClass.assignedRoom);
+                            const isOverloaded = matchingClass.count > (roomObj ? roomObj.capacity : 0);
+                            
+                            const badgeColor = isOverloaded 
+                                ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200' 
+                                : 'bg-emerald-50 border-emerald-200 text-emerald-950 hover:bg-emerald-100';
+
+                            const tagColor = isOverloaded ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white';
+
+                            roomCardHtml = `
+                                <div onclick="openManualOverrideModal('${matchingClass.id}')" class="p-2.5 rounded-xl border ${badgeColor} cursor-pointer transition shadow-xs space-y-1">
+                                    <div class="flex justify-between items-start">
+                                        <span class="font-bold text-xs truncate max-w-[120px]" title="${matchingClass.subject}">${matchingClass.subject}</span>
+                                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${tagColor}">${matchingClass.assignedRoom}</span>
+                                    </div>
+                                    <div class="text-[11px] opacity-80">${matchingClass.lecturer}</div>
+                                    <div class="flex items-center justify-between text-[11px] font-medium pt-1 border-t border-black/5">
+                                        <span>Sĩ số: <strong>${matchingClass.count}</strong></span>
+                                        <span>Sức chứa: <strong>${roomObj ? roomObj.capacity : 0}</strong></span>
+                                    </div>
+                                    ${isOverloaded ? '<div class="text-[10px] font-bold text-amber-700 flex items-center space-x-1"><i data-lucide="alert-triangle" class="w-3 h-3 inline"></i><span>Cảnh báo quá tải!</span></div>' : ''}
+                                </div>`;
+                        }
+
+                        shiftHtml += `<td class="p-2 border-r border-b border-slate-200 align-top">${roomCardHtml}</td>`;
+                    } else {
+                        // Empty Slot
+                        shiftHtml += `<td class="p-2 border-r border-b border-slate-200 text-center text-slate-300 text-xs font-light">-- Trống --</td>`;
+                    }
+                });
+
+                tr.innerHTML = shiftHtml;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Automatic Room Allocation Algorithm Simulation
+        function runAutoAllocation() {
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const statusText = document.getElementById('progress-status-text');
+            const percentText = document.getElementById('progress-percent');
+            const btn = document.getElementById('btn-auto-assign');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            progressContainer.classList.remove('hidden');
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 20;
+                progressBar.style.width = `${progress}%`;
+                percentText.innerText = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // CORE ALGORITHM: Fit classes into rooms
+                    // Sort rooms by capacity descending for best fit
+                    const sortedRooms = [...rooms].sort((a, b) => a.capacity - b.capacity);
+
+                    classesData.forEach(cls => {
+                        // Find occupied rooms in this specific (Day, Shift)
+                        const occupiedRoomIds = classesData
+                            .filter(c => c.day === cls.day && c.shift === cls.shift && c.assignedRoom)
+                            .map(c => c.assignedRoom);
+
+                        // Find best fitting room: Smallest room that fits students, else largest available room
+                        let bestRoom = sortedRooms.find(r => r.capacity >= cls.count && !occupiedRoomIds.includes(r.id));
+                        
+                        // Fallback if all suitable rooms full -> pick any available empty room
+                        if (!bestRoom) {
+                            bestRoom = sortedRooms.find(r => !occupiedRoomIds.includes(r.id));
+                        }
+
+                        if (bestRoom) {
+                            cls.assignedRoom = bestRoom.id;
+                        }
+                    });
+
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        renderTimetableGrid();
+                        showToast("Thành công!", `Đã tự động gán phòng thành công cho ${classesData.length}/${classesData.length} lớp học.`);
+                    }, 400);
+                }
+            }, 150);
+        }
+
+        // Manual Override Modal Functions
+        function openManualOverrideModal(classId) {
+            selectedClassIdForOverride = classId;
+            const cls = classesData.find(c => c.id === classId);
+            if (!cls) return;
+
+            const modal = document.getElementById('room-modal');
+            const detailsDiv = document.getElementById('modal-class-details');
+            const select = document.getElementById('modal-available-rooms-select');
+
+            detailsDiv.innerHTML = `
+                <p><strong>Lớp/Môn:</strong> ${cls.subject} (${cls.id})</p>
+                <p><strong>Thời gian:</strong> ${cls.day} - ${cls.shift}</p>
+                <p><strong>Sĩ số đăng ký:</strong> ${cls.count} sinh viên</p>
+                <p><strong>Phòng hiện tại:</strong> ${cls.assignedRoom || 'Chưa gán'}</p>
+            `;
+
+            // Find free rooms in this time slot
+            const occupiedRoomIds = classesData
+                .filter(c => c.day === cls.day && c.shift === cls.shift && c.id !== cls.id && c.assignedRoom)
+                .map(c => c.assignedRoom);
+
+            const availableRooms = rooms.filter(r => !occupiedRoomIds.includes(r.id));
+
+            select.innerHTML = availableRooms.map(r => `
+                <option value="${r.id}" ${cls.assignedRoom === r.id ? 'selected' : ''}>
+                    Phòng ${r.id} (${r.building}) - Sức chứa: ${r.capacity} chỗ ${cls.count > r.capacity ? '⚠️ [Thiếu chỗ]' : '✅ [Đủ chỗ]'}
+                </option>
+            `).join('');
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('room-modal').classList.add('hidden');
+            selectedClassIdForOverride = null;
+        }
+
+        function confirmManualReassignment() {
+            const select = document.getElementById('modal-available-rooms-select');
+            const newRoomId = select.value;
+            
+            const cls = classesData.find(c => c.id === selectedClassIdForOverride);
+            if (cls) {
+                cls.assignedRoom = newRoomId;
+                renderTimetableGrid();
+                showToast("Đã cập nhật", `Đã chuyển lớp ${cls.subject} sang phòng ${newRoomId}`);
+            }
+            closeModal();
+        }
+
+        // Handle Excel File Upload
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('file-name-display').innerText = file.name;
+                showToast("Tải tập tin thành công", `Đã nạp file thời khóa biểu ${file.name}`);
+            }
+        }
+
+        function loadSampleData() {
+            renderTimetableGrid();
+            showToast("Dữ liệu mẫu", "Đã nạp lại danh sách lớp học mặc định.");
+        }
+
+        // ==========================================
+        // 2. STUDENT LOOKUP & EMPTY ROOMS VIEW
+        // ==========================================
+        function quickFillStudent(code) {
+            document.getElementById('student-id-input').value = code;
+            lookupStudentSchedule();
+        }
+
+        function lookupStudentSchedule() {
+            const code = document.getElementById('student-id-input').value.trim().toUpperCase();
+            const container = document.getElementById('student-schedule-container');
+            const infoCard = document.getElementById('student-info-card');
+
+            if (!code || !studentsDatabase[code]) {
+                infoCard.classList.add('hidden');
+                container.innerHTML = `
+                    <div class="py-8 text-center text-slate-500">
+                        <i data-lucide="alert-circle" class="w-10 h-10 text-amber-500 mx-auto mb-2"></i>
+                        <p class="font-semibold">Không tìm thấy mã sinh viên "${code}" trong hệ thống!</p>
+                        <p class="text-xs text-slate-400 mt-1">Gợi ý thử nhập: SV001, SV002, SV003</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            const student = studentsDatabase[code];
+            document.getElementById('student-name-display').innerText = student.name;
+            document.getElementById('student-code-display').innerText = `MSSV: ${student.code} | Lớp Sinh Hoạt: ${student.class}`;
+            infoCard.classList.remove('hidden');
+
+            // Find all classes registered for this student
+            const studentClasses = classesData.filter(c => c.students.includes(code));
+
+            if (studentClasses.length === 0) {
+                container.innerHTML = `<p class="py-6 text-sm text-slate-500">Sinh viên chưa đăng ký học phần nào trong học kỳ này.</p>`;
+                return;
+            }
+
+            // Responsive Layout: Render Mobile Card view & Desktop Grid/Table view
+            let html = `
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center space-x-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
+                        <span>Danh sách các môn học trong tuần</span>
+                    </h4>
+
+                    <!-- Mobile Card View (Responsive Chrome Mobile Ready) -->
+                    <div class="block sm:hidden space-y-3">
+                        ${studentClasses.map(c => {
+                            const room = rooms.find(r => r.id === c.assignedRoom);
+                            return `
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left space-y-2">
+                                    <div class="flex justify-between items-start">
+                                        <span class="font-bold text-indigo-950 text-sm">${c.subject}</span>
+                                        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-xs font-bold rounded">${c.day} - ${c.shift}</span>
+                                    </div>
+                                    <div class="text-xs text-slate-600 space-y-1">
+                                        <p><strong>Giảng viên:</strong> ${c.lecturer}</p>
+                                        <p class="text-emerald-700 font-semibold">
+                                            <strong>Vị trí:</strong> ${c.assignedRoom ? `Phòng ${c.assignedRoom} (${room ? room.building : ''})` : '⚠️ Chưa có phòng'}
+                                        </p>
+                                    </div>
+                                </div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- Desktop Table View -->
+                    <div class="hidden sm:block overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead class="bg-slate-100 text-slate-800 font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4">Thứ / Ca</th>
+                                    <th class="py-3 px-4">Tên Môn Học</th>
+                                    <th class="py-3 px-4">Giảng Viên</th>
+                                    <th class="py-3 px-4">Số Phòng</th>
+                                    <th class="py-3 px-4">Tòa Nhà</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                ${studentClasses.map(c => {
+                                    const room = rooms.find(r => r.id === c.assignedRoom);
+                                    return `
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="py-3 px-4 font-bold text-indigo-900">${c.day} - ${c.shift}</td>
+                                            <td class="py-3 px-4 font-semibold">${c.subject}</td>
+                                            <td class="py-3 px-4">${c.lecturer}</td>
+                                            <td class="py-3 px-4 font-bold text-emerald-600">${c.assignedRoom || 'Chưa gán'}</td>
+                                            <td class="py-3 px-4">${room ? room.building : 'N/A'}</td>
+                                        </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function switchStudentTab(tab) {
+            document.getElementById('student-tab-schedule').classList.toggle('hidden', tab !== 'schedule');
+            document.getElementById('student-tab-empty-rooms').classList.toggle('hidden', tab !== 'empty-rooms');
+
+            const btnSchedule = document.getElementById('tab-btn-schedule');
+            const btnEmpty = document.getElementById('tab-btn-empty-rooms');
+
+            if (tab === 'schedule') {
+                btnSchedule.className = "py-2.5 px-4 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center space-x-2";
+                btnEmpty.className = "py-2.5 px-4 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center space-x-2";
+            } else {
+                btnEmpty.className = "py-2.5 px-4 font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600 transition flex items-center space-x-2";
+                btnSchedule.className = "py-2.5 px-4 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center space-x-2";
+                renderEmptyRooms();
+            }
+        }
+
+        function renderEmptyRooms() {
+            const container = document.getElementById('empty-rooms-list');
+            const selectedCa = document.getElementById('filter-ca-select').value;
+            container.innerHTML = '';
+
+            rooms.forEach(room => {
+                // Find shifts where this room is occupied
+                const occupiedShifts = classesData
+                    .filter(c => c.assignedRoom === room.id)
+                    .map(c => `${c.day} (${c.shift})`);
+
+                const freeShifts = SHIFTS.filter(s => selectedCa === 'all' || s === selectedCa);
+
+                container.innerHTML += `
+                    <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 hover:border-indigo-300 transition">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-slate-800 text-sm">Phòng ${room.id}</span>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">${room.building}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-2">Sức chứa tối đa: <strong>${room.capacity} chỗ</strong></p>
+                        <div class="text-[11px] text-slate-600">
+                            <span class="font-semibold text-indigo-900 block mb-1">Trạng thái sử dụng:</span>
+                            ${occupiedShifts.length > 0 
+                                ? `<span class="text-amber-700 font-medium">Bận: ${occupiedShifts.join(', ')}</span>` 
+                                : '<span class="text-emerald-600 font-bold">✨ Trống cả ngày</span>'}
+                        </div>
+                    </div>`;
+            });
+
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 3. LECTURER SCHEDULE VIEW
+        // ==========================================
+        function populateLecturerSelect() {
+            const select = document.getElementById('lecturer-select');
+            const lecturers = [...new Set(classesData.map(c => c.lecturer))];
+            
+            select.innerHTML = lecturers.map(l => `<option value="${l}">${l}</option>`).join('');
+        }
+
+        function renderLecturerSchedule() {
+            const selectedLecturer = document.getElementById('lecturer-select').value;
+            const container = document.getElementById('lecturer-schedule-container');
+
+            const lecturerClasses = classesData.filter(c => c.lecturer === selectedLecturer);
+
+            if (lecturerClasses.length === 0) {
+                container.innerHTML = `<p class="py-6 text-sm text-slate-500 text-center">Giảng viên không có ca dạy nào trong tuần này.</p>`;
+                return;
+            }
+
+            let html = `
+                <table class="w-full text-left text-xs text-slate-700 border-collapse min-w-[600px]">
+                    <thead class="bg-slate-100 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-4">Thứ</th>
+                            <th class="py-3 px-4">Ca Học</th>
+                            <th class="py-3 px-4">Tên Lớp Học Phân Công</th>
+                            <th class="py-3 px-4">Sĩ Số</th>
+                            <th class="py-3 px-4">Phòng Học Gán</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        ${lecturerClasses.map(c => {
+                            const room = rooms.find(r => r.id === c.assignedRoom);
+                            return `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="py-3 px-4 font-bold text-slate-800">${c.day}</td>
+                                    <td class="py-3 px-4 font-semibold text-indigo-700">${c.shift}</td>
+                                    <td class="py-3 px-4 font-medium">${c.subject} (${c.id})</td>
+                                    <td class="py-3 px-4">${c.count} SV</td>
+                                    <td class="py-3 px-4 font-bold ${c.assignedRoom ? 'text-emerald-600' : 'text-slate-400'}">
+                                        ${c.assignedRoom ? `${c.assignedRoom} (${room ? room.building : ''})` : 'Chưa gán phòng'}
+                                    </td>
+                                </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+
+            container.innerHTML = html;
+        }
+
+        // UTILITY: Toast Notification
+        function showToast(title, message) {
+            const toast = document.getElementById('toast-notification');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+
+            toast.classList.remove('opacity-0', 'translate-y-20', 'pointer-events-none');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-20', 'pointer-events-none');
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
